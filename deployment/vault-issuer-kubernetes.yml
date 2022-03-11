@@ -5,7 +5,7 @@ metadata:
   namespace: cert-manager
 spec:
   vault:
-    path: pki_int/sign/example-dot-com
+    path: pki_int/sign/cert-manager
     server: http://vault:8200
     auth:
       kubernetes:
