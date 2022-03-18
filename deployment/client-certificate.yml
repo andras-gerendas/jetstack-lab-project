@@ -1,17 +1,10 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: example-com
-  namespace: sandbox
+  name: client-cert
 spec:
-  # Secret names are always required.
-  secretName: example-com-tls
-
-  # secretTemplate is optional. If set, these annotations and labels will be
-  # copied to the Secret named example-com-tls. These labels and annotations will
-  # be re-reconciled if the Certificate's secretTemplate changes. secretTemplate
-  # is also enforced, so relevant label and annotation changes on the Secret by a
-  # third party will be overwriten by cert-manager to match the secretTemplate.
+  secretName: tls-client-cert
+  # Optional
   secretTemplate:
     annotations:
       my-secret-annotation-1: "foo"
@@ -26,7 +19,7 @@ spec:
       - example
   # The use of the common name field has been deprecated since 2000 and is
   # discouraged from being used.
-  commonName: test.example.com
+  commonName: client
   isCA: false
   privateKey:
     algorithm: RSA
@@ -37,7 +30,10 @@ spec:
     - client auth
   # At least one of a DNS Name, URI, or IP address is required.
   dnsNames:
-    - test.example.com
+    - client
+    - client.cert-manager
+    - client.cert-manager.svc
+    - client.cert-manager.svc.cluster.local
   #uris:
   #  - spiffe://cluster.local/ns/sandbox/sa/example
   #ipAddresses:

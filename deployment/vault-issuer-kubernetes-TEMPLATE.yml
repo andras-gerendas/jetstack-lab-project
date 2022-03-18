@@ -12,5 +12,5 @@ spec:
         role: cert-manager
         mountPath: /v1/auth/kubernetes
         secretRef:
-          name: cert-manager-token-qkrr4
+          name: CERT-MANAGER-TOKEN-NAME
           key: token
