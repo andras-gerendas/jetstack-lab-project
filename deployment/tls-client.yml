@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: client
+  labels:
+    app: tls-client
+spec:
+  ports:
+  - port: 81
+    protocol: TCP
+    name: tls-test
+  selector:
+    app: tls-client
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tls-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tls-client
+  template:
+    metadata:
+      labels:
+        app: tls-client
+    spec:
+      hostname: client
+      volumes:
+      - name: secret-volume
+        secret:
+          secretName: tls-client-cert
+      containers:
+      - name: alpine
+        image: alpine
+        lifecycle:
+          postStart:
+            exec:
+              command:
+                [
+                  "sh",
+                  "-c",
+                  "apk add --update --no-cache bash curl openssl tcpdump"
+                ]
+        command: ["sh", "-c", "trap : TERM INT; sleep infinity & wait"]
+        ports:
+        - containerPort: 81
+        volumeMounts:
+        - mountPath: /etc/ssl/client-certs
+          name: secret-volume

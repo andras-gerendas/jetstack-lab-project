@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  default.conf: |-
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log debug;
+    server {
+        listen 80;
+        server_name nginx.cert-manager.svc.cluster.local;
+        return 301 https://nginx$request_uri;
+    }
+    server {
+        listen 443 ssl;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        server_name nginx.cert-manager.svc.cluster.local;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_certificate /etc/nginx/ssl/tls.crt;
+        ssl_certificate_key /etc/nginx/ssl/tls.key;
+        ssl_client_certificate /etc/nginx/ssl/ca.crt;
+        ssl_verify_client optional;
+
+        location / {
+            if ($ssl_client_verify != SUCCESS) {
+              return 403;
+            }
+            try_files $uri $uri/ =404;
+        }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    name: http
+  - port: 443
+    protocol: TCP
+    name: https
+  - port: 81
+    protocol: TCP
+    name: tls-test
+  selector:
+    app: nginx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      hostname: nginx
+      volumes:
+      - name: secret-volume
+        secret:
+          secretName: tls-server-cert
+      - name: configmap-volume
+        configMap:
+          name: nginx-config
+      containers:
+      - name: nginx-https
+        image: nginx
+        command: [ "sh", "-c", "nginx -g 'daemon off;'" ]
+        ports:
+        - containerPort: 443
+        - containerPort: 80
+        volumeMounts:
+        - mountPath: /etc/nginx/ssl
+          name: secret-volume
+        - mountPath: /etc/nginx/conf.d
+          name: configmap-volume
+      - name: alpine
+        image: alpine
+        lifecycle:
+          postStart:
+            exec:
+              command:
+                [
+                  "sh",
+                  "-c",
+                  "apk add --update --no-cache bash curl openssl tcpdump"
+                ]
+        command: ["sh", "-c", "trap : TERM INT; sleep infinity & wait"]
+        ports:
+        - containerPort: 81
+        volumeMounts:
+        - mountPath: /etc/nginx/ssl
+          name: secret-volume
+        - mountPath: /etc/nginx/conf.d
+          name: configmap-volume
