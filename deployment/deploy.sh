@@ -100,7 +100,14 @@ kubectl apply -f server-certificate.yml
 
 # Deploy nginx server
 # TODO: fill nginx-server.yml
+# Needed on Minikube before docker command:
+#eval $(minikube -p minikube docker-env)
+docker image build -t localrepo/alpine-nginx .
 kubectl apply -f nginx-server.yml
+
+# Expose NodePort on Minikube
+#minikube service nginx-external -n cert-manager --url &
+#echo "URL: https://127.0.0.1:$(ps aux | grep 'ssh.*-L .*443' | grep -v grep | grep -o '\-L .*443' | sed 's/-L \([0-9]\+\):[^:]*:443/\1/')"
 
 # Create a new client certificate
 # TODO: fill client-certificate.yml
@@ -111,12 +118,22 @@ kubectl apply -f client-certificate.yml
 kubectl apply -f tls-client.yml
 
 # Test server-client connection and certificates:
-# TODO: determine tls-client pod name
-kubectl exec -ti "$(kubectl get pod -o NAME | grep 'nginx-server' | sed 's/pod\///')" -c alpine -- bash
+kubectl exec -ti "$(kubectl get pod -o NAME | grep 'nginx-server' | sed 's/pod\///')" -- bash
 openssl x509 -in /etc/nginx/ssl/tls.crt -noout -text
-openssl s_server -CAfile /etc/nginx/ssl/ca.crt -key /etc/nginx/ssl/tls.key -cert /etc/nginx/ssl/tls.crt -accept 81 -tls1_3 -verify 1 -www
+#openssl s_server -CAfile /etc/nginx/ssl/ca.crt -key /etc/nginx/ssl/tls.key -cert /etc/nginx/ssl/tls.crt -accept 81 -tls1_3 -verify 1 -www
 
 kubectl exec -ti "$(kubectl get pod -o NAME | grep 'tls-client' | sed 's/pod\///')" -- bash
 openssl x509 -in /etc/ssl/client-certs/tls.crt -noout -text
 openssl s_client -connect nginx:443 </dev/null 2>/dev/null | openssl x509 -inform pem -text
 curl --cert /etc/ssl/client-certs/tls.crt --key /etc/ssl/client-certs/tls.key --cacert /etc/ssl/client-certs/ca.crt -vv https://nginx:443
+
+# Certificate rollout
+kubectl delete cert server-cert
+kubectl delete secrets tls-server-cert
+kubectl apply -f server-certificate.yml
+kubectl rollout restart deployment nginx-server
+
+kubectl delete cert client-cert
+kubectl delete secrets tls-client-cert
+kubectl apply -f client-certificate.yml
+kubectl rollout restart deployment tls-client
