@@ -6,6 +6,7 @@ Run the ```deploy.sh``` script in the ```deployment``` directory.
 ## Components
 - Hashicorp Vault
 - Hashicorp Consul
+- Jetstack Certificate Manager
 - Nginx for testing
 
 ## Features
